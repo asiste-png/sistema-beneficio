@@ -2,251 +2,428 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Control de Beneficio de Café</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beneficio de Café</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
-<body class="container-fluid px-4 py-3 bg-light">
+<body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark rounded mb-4 px-3 shadow-sm">
-        <a class="navbar-brand fw-bold text-warning" href="/">☕ Sistema Beneficio</a>
-        <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-white">👤 Hola, <strong>{{ current_user.nombre }}</strong></span>
-            <a href="/usuarios" class="btn btn-outline-info btn-sm">Gestión de Usuarios</a>
-            <a href="/exportar_excel" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
-            <a href="/logout" class="btn btn-outline-danger btn-sm">Cerrar Sesión</a>
+<!-- Barra de Navegación Superior -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4 shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">☕ Sistema Beneficio de Café</a>
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-white">
+                👤 Usuario: <strong>{{ current_user.username if current_user.is_authenticated else 'Invitado' }}</strong>
+            </span>
+            <a href="{{ url_for('exportar_excel') }}" class="btn btn-sm btn-success fw-bold">
+                📊 Exportar a Excel
+            </a>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger fw-bold">
+                🚪 Cerrar Sesión
+            </a>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+<div class="container-fluid py-4">
 
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center bg-white border-start border-primary border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">Maduro Total</h6>
-                    <h3 class="fw-bold text-primary mb-0">{{ total_maduro_ingresado }} qq</h3>
+    <!-- Encabezado y Acción -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark mb-0">Panel de Control de Partidas</h3>
+        <button type="button" class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+            ➕ Nueva Partida
+        </button>
+    </div>
+
+    <!-- Navegación por Pestañas -->
+    <ul class="nav nav-tabs mb-4" id="beneficioTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="resumen-tab" data-bs-toggle="tab" data-bs-target="#resumen-pane" type="button" role="tab">
+                📊 Tarjetas de Resumen
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="registros-tab" data-bs-toggle="tab" data-bs-target="#registros-pane" type="button" role="tab">
+                📋 Registro de Partidas
+            </button>
+
+        <li class="nav-item" role="presentation">
+    <button class="nav-link fw-bold" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#usuarios-pane" type="button" role="tab">
+        👥 Usuarios
+    </button>
+</li>
+        </li>
+    </ul>
+
+    <!-- Contenido de Pestañas -->
+    <div class="tab-content" id="beneficioTabsContent">
+        
+        <!-- Pestaña 1: Resumen -->
+        <div class="tab-pane fade show active" id="resumen-pane" role="tabpanel">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 border-start border-primary border-4">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-1">Maduro Total</h6>
+                            <h3 class="fw-bold text-primary mb-0">{{ maduro_total }} qq</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 border-start border-info border-4">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-1">Maduro Beneficio</h6>
+                            <h3 class="fw-bold text-info mb-0">{{ maduro_beneficio }} qq</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 border-start border-success border-4">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-1">Total Pergamino Obtenido</h6>
+                            <h3 class="fw-bold text-success mb-0">{{ total_pergamino }} qq</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 border-start border-warning border-4">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-1">Rendimiento Promedio</h6>
+                            <h3 class="fw-bold text-dark mb-0">{{ rendimiento_promedio }}</h3>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center bg-white border-start border-info border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">Maduro Beneficio</h6>
-                    <h3 class="fw-bold text-info mb-0">{{ total_maduro_beneficio }} qq</h3>
+
+        <!-- Pestaña 2: Tabla de Registros -->
+        <div class="tab-pane fade" id="registros-pane" role="tabpanel">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Imagen</th>
+                                    <th>Fecha</th>
+                                    <th>Partida</th>
+                                    <th>Finca</th>
+                                    <th>Maduro Total</th>
+                                    <th>Maduro Beneficio</th>
+                                    <th>Diferencia</th>
+                                    <th>Pergamino</th>
+                                    <th>Rendimiento</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in registros %}
+                                <tr>
+                                    <td>
+                                        {% if r.imagen %}
+                                            <a href="{{ url_for('static', filename='uploads/' + r.imagen) }}" target="_blank">
+                                                <img src="{{ url_for('static', filename='uploads/' + r.imagen) }}" alt="Foto" class="rounded border" style="width: 48px; height: 48px; object-fit: cover;">
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small">Sin imagen</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ r.fecha }}</td>
+                                    <td><span class="badge bg-secondary px-3 py-2 fs-6">{{ r.partida }}</span></td>
+                                    <td>{{ r.finca }}</td>
+                                    <td>{{ r.maduro_total }}</td>
+                                    <td>{{ r.maduro_beneficio }}</td>
+                                    <td><span class="badge {% if r.diferencia > 0 %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ r.diferencia }}</span></td>
+                                    <td class="fw-bold">{{ r.pergamino }}</td>
+                                    <td class="fw-bold">{{ r.rendimiento }}</td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-warning me-1" data-bs-toggle="modal" data-bs-target="#modalEditar{{ r.id }}">
+                                            ✏️ Editar
+                                        </button>
+                                        <form action="{{ url_for('eliminar_beneficio', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar este registro?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                🗑️ Eliminar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center bg-white border-start border-success border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">Total Pergamino Obtenido</h6>
-                    <h3 class="fw-bold text-success mb-0">{{ total_pergamino }} qq</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm text-center bg-white border-start border-warning border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-1">Rendimiento Promedio</h6>
-                    <h3 class="fw-bold text-dark mb-0">{{ rendimiento_promedio }}</h3>
-                </div>
+
+    </div>
+</div>
+
+<!-- Pestaña 3: Usuarios -->
+<div class="tab-pane fade" id="usuarios-pane" role="tabpanel">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Gestión de Accesos</h5>
+        <button type="button" class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
+            👤➕ Nuevo Usuario
+        </button>
+    </div>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Nombre Completo</th>
+                            <th>Rol</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td>{{ u.id }}</td>
+                            <td class="fw-bold">{{ u.username }}</td>
+                            <td>{{ u.nombre or 'Sin especificar' }}</td>
+                            <td><span class="badge bg-info text-dark">{{ u.rol }}</span></td>
+                            <td class="text-center">
+                                <form action="{{ url_for('eliminar_usuario', id=u.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar usuario?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" {% if current_user.id == u.id %}disabled{% endif %}>
+                                        🗑️ Eliminar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-primary text-white fw-bold">
-            📋 Nuevo Registro de Beneficio
+<!-- Modal Nuevo Usuario -->
+<div class="modal fade" id="modalCrearUsuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Registrar Nuevo Usuario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('crear_usuario') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" name="nombre" class="form-control" placeholder="Ej: Juan Pérez" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de Usuario</label>
+                        <input type="text" name="username" class="form-control" placeholder="Ej: jperez" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" name="password" class="form-control" placeholder="******" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select name="rol" class="form-select">
+                            <option value="Usuario">Usuario</option>
+                            <option value="Admin">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Guardar Usuario</button>
+                </div>
+            </form>
         </div>
-        <div class="card-body bg-white">
-            <form method="POST" action="/beneficio">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">Fecha:</label>
+    </div>
+</div>
+
+<!-- Modal Nuevo Registro con Cálculos y Alertas Dinámicas -->
+<div class="modal fade" id="modalNuevo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Registrar Nueva Partida</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('nuevo_beneficio') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha</label>
                         <input type="date" name="fecha" class="form-control" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">No. de Partida:</label>
-                        <input type="text" name="no_partida" class="form-control" placeholder="Ej: P-101" required>
+                    <div class="mb-3">
+                        <label class="form-label">Partida</label>
+                        <input type="text" name="partida" class="form-control" placeholder="Ej: P-001" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">Finca que Benefició:</label>
-                        <input type="text" name="finca_beneficio" class="form-control" placeholder="Nombre de la finca" required>
+                    <div class="mb-3">
+                        <label class="form-label">Finca</label>
+                        <input type="text" name="finca" class="form-control" placeholder="Nombre de finca" required>
                     </div>
-                </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Total Maduro Ingresado:</label>
-                        <input type="number" step="0.01" id="maduro_total" name="maduro_total" class="form-control" oninput="calcularRendimiento()" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Maduro Total (qq)</label>
+                            <input type="number" step="0.01" id="new_maduro_total" name="maduro_total" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Maduro Beneficio (qq)</label>
+                            <input type="number" step="0.01" id="new_maduro_beneficio" name="maduro_beneficio" class="form-control" placeholder="0.00" required>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Total Maduro Beneficio:</label>
-                        <input type="number" step="0.01" id="maduro_beneficio" name="maduro_beneficio" class="form-control" oninput="calcularRendimiento()" required>
-                    </div>
-                </div>
 
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">qq Pergamino por partida:</label>
-                        <input type="number" step="0.01" id="pergamino_partida" name="pergamino_partida" class="form-control" oninput="calcularRendimiento()" required>
+                    <div class="mb-3">
+                        <label class="form-label">Pergamino Obtenido (qq)</label>
+                        <input type="number" step="0.01" id="new_pergamino" name="pergamino" class="form-control" placeholder="0.00" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">qq Entregados a Bodega:</label>
-                        <input type="number" step="0.01" name="qq_bodega" class="form-control">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Envío (Bodega):</label>
-                        <input type="text" name="envio" class="form-control" placeholder="Ej: 1745">
-                    </div>
-                </div>
 
-                <div class="row bg-light p-3 rounded my-2 align-items-center border">
-                    <div class="col-md-4">
-                        <strong>Diferencia:</strong> <span id="lbl_diferencia" class="fs-5 text-dark">0.00</span>
+                    <!-- Campos Calculados Automáticamente -->
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Diferencia Estimada</small>
+                                <span id="disp_diferencia" class="fw-bold fs-5 text-dark">0.00</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Rendimiento Calculado</small>
+                                <span id="disp_rendimiento" class="fw-bold fs-5 text-dark">0.00</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <strong>Rendimiento:</strong> <span id="lbl_rendimiento" class="fs-5 fw-bold">0.00</span>
-                    </div>
-                    <div class="col-md-4">
-                        <div id="box_alerta" class="alert mb-0 d-none" role="alert"></div>
-                    </div>
-                </div>
 
-                <button type="submit" class="btn btn-success w-100 fw-bold mt-2">Guardar Registro</button>
-            </form>
-        </div>
-    </div>
+                    <!-- Contenedor de Alertas Dinámicas -->
+                    <div id="alerta_calculo" class="alert alert-warning d-none" role="alert"></div>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-dark text-white fw-bold">
-            🔍 Filtros y Búsqueda de Registros
-        </div>
-        <div class="card-body bg-white">
-            <form method="GET" action="/" class="row g-3">
-                <div class="col-md-2">
-                    <label class="form-label">No. Partida</label>
-                    <input type="text" name="f_partida" class="form-control" value="{{ f_partida }}">
+                    <div class="mb-3">
+                        <label class="form-label">Imagen / Comprobante</label>
+                        <input type="file" name="imagen" class="form-control" accept="image/*">
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Finca</label>
-                    <input type="text" name="f_finca" class="form-control" value="{{ f_finca }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Fecha Desde</label>
-                    <input type="date" name="f_fecha_inicio" class="form-control" value="{{ f_fecha_inicio }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Fecha Hasta</label>
-                    <input type="date" name="f_fecha_fin" class="form-control" value="{{ f_fecha_fin }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Alerta</label>
-                    <select name="f_alerta" class="form-select">
-                        <option value="">Todas</option>
-                        <option value="OPTIMO" {% if f_alerta == 'OPTIMO' %}selected{% endif %}>Óptimo</option>
-                        <option value="BAJO" {% if f_alerta == 'BAJO' %}selected{% endif %}>Bajo (<4.0)</option>
-                        <option value="ALTO" {% if f_alerta == 'ALTO' %}selected{% endif %}>Alto (>5.0)</option>
-                    </select>
-                </div>
-                <div class="col-md-1 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Registro</button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Partida</th>
-                        <th>Finca</th>
-                        <th>Maduro Total</th>
-                        <th>Maduro Beneficio</th>
-                        <th>Diferencia</th>
-                        <th>Pergamino</th>
-                        <th>Rendimiento</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in registros %}
-                    <tr>
-                        <td>{{ r[1] }}</td>
-                        <td><span class="badge bg-secondary fs-6">{{ r[2] }}</span></td>
-                        <td>{{ r[3] }}</td>
-                        <td>{{ r[4] }}</td>
-                        <td>{{ r[5] }}</td>
-                        <td>{{ r[6] }}</td>
-                        <td><strong>{{ r[7] }}</strong></td>
-                        <td><span class="fw-bold">{{ r[8] }}</span></td>
-                        <td>
-                            {% if r[11] == 'BAJO' %}
-                                <span class="badge bg-warning text-dark">⚠️ Bajo (<4.0)</span>
-                            {% elif r[11] == 'ALTO' %}
-                                <span class="badge bg-danger">🚨 Alto (>5.0)</span>
-                            {% else %}
-                                <span class="badge bg-success">✅ Óptimo</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">No hay registros disponibles.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- Modales de Edición -->
+{% for r in registros %}
+<div class="modal fade" id="modalEditar{{ r.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">Editar Registro - Partida {{ r.partida }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('editar_beneficio', id=r.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha</label>
+                        <input type="date" name="fecha" class="form-control" value="{{ r.fecha }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Partida</label>
+                        <input type="text" name="partida" class="form-control" value="{{ r.partida }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Finca</label>
+                        <input type="text" name="finca" class="form-control" value="{{ r.finca }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Maduro Total</label>
+                        <input type="number" step="0.01" name="maduro_total" class="form-control" value="{{ r.maduro_total }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Maduro Beneficio</label>
+                        <input type="number" step="0.01" name="maduro_beneficio" class="form-control" value="{{ r.maduro_beneficio }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pergamino</label>
+                        <input type="number" step="0.01" name="pergamino" class="form-control" value="{{ r.pergamino }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subir o Cambiar Foto</label>
+                        <input type="file" name="imagen" class="form-control" accept="image/*">
+                        {% if r.imagen %}
+                            <div class="mt-2">
+                                <small class="text-muted">Imagen actual:</small><br>
+                                <img src="{{ url_for('static', filename='uploads/' + r.imagen) }}" class="img-thumbnail" style="max-height: 80px;">
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">Guardar Cambios</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
+{% endfor %}
 
-    <script>
-    function calcularRendimiento() {
-        let mTotal = parseFloat(document.getElementById('maduro_total').value) || 0;
-        let mBeneficio = parseFloat(document.getElementById('maduro_beneficio').value) || 0;
-        let qqPergamino = parseFloat(document.getElementById('pergamino_partida').value) || 0;
-        
-        let diferencia = mTotal - mBeneficio;
-        let rendimiento = qqPergamino > 0 ? (mBeneficio / qqPergamino) : 0;
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-        document.getElementById('lbl_diferencia').innerText = diferencia.toFixed(2);
-        document.getElementById('lbl_rendimiento').innerText = rendimiento.toFixed(2);
+<!-- Script para Cálculo en Tiempo Real y Alertas -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const totalInput = document.getElementById('new_maduro_total');
+    const beneficioInput = document.getElementById('new_maduro_beneficio');
+    const pergaminoInput = document.getElementById('new_pergamino');
+    
+    const dispDiferencia = document.getElementById('disp_diferencia');
+    const dispRendimiento = document.getElementById('disp_rendimiento');
+    const alerta = document.getElementById('alerta_calculo');
 
-        let boxAlerta = document.getElementById('box_alerta');
-        
-        if (mBeneficio > 0 && qqPergamino > 0) {
-            boxAlerta.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger');
-            if (rendimiento < 4.0) {
-                boxAlerta.classList.add('alert-warning');
-                boxAlerta.innerText = '⚠️ Rendimiento Bajo (< 4.0)';
-            } else if (rendimiento > 5.0) {
-                boxAlerta.classList.add('alert-danger');
-                boxAlerta.innerText = '🚨 Alerta: Rendimiento Alto (> 5.0)';
-            } else {
-                boxAlerta.classList.add('alert-success');
-                boxAlerta.innerText = '✅ Rendimiento Óptimo (4.0 - 5.0)';
-            }
+    function calcularValores() {
+        const total = parseFloat(totalInput.value) || 0;
+        const beneficio = parseFloat(beneficioInput.value) || 0;
+        const pergamino = parseFloat(pergaminoInput.value) || 0;
+
+        // 1. Calcular Diferencia
+        const diferencia = (total - beneficio).toFixed(2);
+        dispDiferencia.textContent = diferencia;
+
+        // 2. Calcular Rendimiento
+        let rendimiento = 0;
+        if (pergamino > 0) {
+            rendimiento = (beneficio / pergamino).toFixed(2);
+        }
+        dispRendimiento.textContent = rendimiento;
+
+        // 3. Generar Alertas
+        let mensajes = [];
+        if (total > 0 && beneficio > 0 && total < beneficio) {
+            mensajes.push("⚠️ El Maduro Beneficio no puede ser mayor que el Maduro Total.");
+        }
+        if (diferencia > 0) {
+            mensajes.push(`ℹ️ Existe una merma/diferencia de ${diferencia} qq entre el maduro total e ingresado.`);
+        }
+        if (rendimiento > 0 && (rendimiento < 1.10 || rendimiento > 1.35)) {
+            mensajes.push(`⚠️ El rendimiento calculado (${rendimiento}) está fuera del rango promedio estándar (1.10 - 1.35).`);
+        }
+
+        if (mensajes.length > 0) {
+            alerta.innerHTML = mensajes.join('<br>');
+            alerta.classList.remove('d-none');
         } else {
-            boxAlerta.classList.add('d-none');
+            alerta.classList.add('d-none');
         }
     }
-    </script>
+
+    totalInput.addEventListener('input', calcularValores);
+    beneficioInput.addEventListener('input', calcularValores);
+    pergaminoInput.addEventListener('input', calcularValores);
+});
+</script>
 </body>
 </html>
-{% if current_user.rol == 'admin' %}
-  <!-- Este botón solo lo verá el Administrador -->
-  <a class="nav-link" href="{{ url_for('gestion_usuarios') }}">Gestión de Usuarios</a>
-{% endif %}

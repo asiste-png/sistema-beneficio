@@ -1,0 +1,30 @@
+from flask import send_file
+import pandas as pd
+import io
+
+@app.route('/exportar_excel')
+@login_required
+def exportar_excel():
+    conn = get_db_connection()
+    df = pd.read_sql_query("SELECT fecha, partida, finca, maduro_total, maduro_beneficio, diferencia, pergamino, rendimiento FROM beneficio ORDER BY id DESC", conn)
+    conn.close()
+
+    # Crear buffer en memoria para descargar sin guardar en disco
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Beneficio')
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='Registro_Beneficio_Cafe.xlsx'
+    )
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Sesión cerrada correctamente.', 'info')
+    return redirect(url_for('login'))
