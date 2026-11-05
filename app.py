@@ -43,7 +43,10 @@ def load_user(user_id):
 
 # --- RUTAS DE LA APLICACIÓN ---
 
+# Permite acceder a la vista principal sin importar cómo se llame en url_for()
 @app.route('/')
+@app.route('/beneficio')
+@app.route('/index')
 @login_required
 def dashboard():
     conn = get_db_connection()
@@ -51,6 +54,10 @@ def dashboard():
     registros = cursor.execute("SELECT * FROM beneficio ORDER BY id DESC").fetchall()
     conn.close()
     return render_template('beneficio.html', registros=registros)
+
+# También asignamos alias a las funciones por si las plantillas usan url_for('beneficio') o url_for('index')
+beneficio = dashboard
+index = dashboard
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
