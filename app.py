@@ -201,3 +201,20 @@ def gestion_usuarios():
     conn.close()
 
     return render_template('usuarios.html', usuarios=usuarios)
+class User(UserMixin):
+    def __init__(self, id, username, nombre, rol):
+        self.id = id
+        self.username = username
+        self.nombre = nombre
+        self.rol = rol
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    user_data = cursor.execute("SELECT id, username, nombre, rol FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    
+    if user_data:
+        return User(id=user_data['id'], username=user_data['username'], nombre=user_data['nombre'], rol=user_data['rol'])
+    return None
