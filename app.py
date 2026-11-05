@@ -1,0 +1,204 @@
+import sqlite3
+import pandas as pd
+from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+
+app = Flask(__name__)
+app.secret_key = 'clave_secreta_para_sesiones_sistema_beneficio'
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, id, username, nombre):
+        self.id = id
+        self.username = username
+        self.nombre = nombre
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = sqlite3.connect('beneficio.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, nombre FROM usuarios WHERE id = ?", (user_id,))
+    u = cursor.fetchone()
+    conn.close()
+    if u:
+        return User(id=u[0], username=u[1], nombre=u[2])
+    return None
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        conn = sqlite3.connect('beneficio.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username, password, nombre FROM usuarios WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row and check_password_hash(row[2], password):
+            user = User(id=row[0], username=row[1], nombre=row[3])
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('Usuario o contraseña incorrectos', 'danger')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/')
+@login_required
+def index():
+    f_partida = request.args.get('f_partida', '').strip()
+    f_finca = request.args.get('f_finca', '').strip()
+    f_fecha_inicio = request.args.get('f_fecha_inicio', '').strip()
+    f_fecha_fin = request.args.get('f_fecha_fin', '').strip()
+    f_alerta = request.args.get('f_alerta', '').strip()
+
+    conn = sqlite3.connect('beneficio.db')
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM beneficio WHERE 1=1"
+    params = []
+
+    if f_partida:
+        query += " AND no_partida LIKE ?"
+        params.append(f'%{f_partida}%')
+    if f_finca:
+        query += " AND finca_beneficio LIKE ?"
+        params.append(f'%{f_finca}%')
+    if f_fecha_inicio:
+        query += " AND fecha >= ?"
+        params.append(f_fecha_inicio)
+    if f_fecha_fin:
+        query += " AND fecha <= ?"
+        params.append(f_fecha_fin)
+    if f_alerta:
+        query += " AND estado_alerta = ?"
+        params.append(f_alerta)
+
+    query += " ORDER BY fecha DESC, id DESC"
+    cursor.execute(query, params)
+    registros = cursor.fetchall()
+
+    total_maduro_ingresado = sum(r[4] for r in registros)
+    total_maduro_beneficio = sum(r[5] for r in registros)
+    total_diferencia = sum(r[6] for r in registros)
+    total_pergamino = sum(r[7] for r in registros)
+    rendimiento_promedio = round(total_maduro_beneficio / total_pergamino, 2) if total_pergamino > 0 else 0.0
+
+    conn.close()
+
+    return render_template(
+        'beneficio.html',
+        registros=registros,
+        total_maduro_ingresado=round(total_maduro_ingresado, 2),
+        total_maduro_beneficio=round(total_maduro_beneficio, 2),
+        total_diferencia=round(total_diferencia, 2),
+        total_pergamino=round(total_pergamino, 2),
+        rendimiento_promedio=rendimiento_promedio,
+        f_partida=f_partida,
+        f_finca=f_finca,
+        f_fecha_inicio=f_fecha_inicio,
+        f_fecha_fin=f_fecha_fin,
+        f_alerta=f_alerta
+    )
+
+@app.route('/beneficio', methods=['POST'])
+@login_required
+def guardar_beneficio():
+    fecha = request.form['fecha']
+    no_partida = request.form['no_partida']
+    finca_beneficio = request.form['finca_beneficio']
+    maduro_total = float(request.form['maduro_total'])
+    maduro_beneficio = float(request.form['maduro_beneficio'])
+    pergamino_partida = float(request.form['pergamino_partida'])
+    qq_bodega = float(request.form.get('qq_bodega') or 0)
+    envio = request.form.get('envio', '')
+
+    diferencia = round(maduro_total - maduro_beneficio, 2)
+    rendimiento = round(maduro_beneficio / pergamino_partida, 2) if pergamino_partida > 0 else 0
+
+    if rendimiento < 4.0:
+        alerta = "BAJO"
+    elif rendimiento > 5.0:
+        alerta = "ALTO"
+    else:
+        alerta = "OPTIMO"
+
+    conn = sqlite3.connect('beneficio.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO beneficio (
+            fecha, no_partida, finca_beneficio, maduro_total, maduro_beneficio, 
+            diferencia, pergamino_partida, rendimiento, qq_bodega, envio, estado_alerta
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (fecha, no_partida, finca_beneficio, maduro_total, maduro_beneficio, 
+          diferencia, pergamino_partida, rendimiento, qq_bodega, envio, alerta))
+    conn.commit()
+    conn.close()
+    flash('Registro guardado correctamente', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/exportar_excel')
+@login_required
+def exportar_excel():
+    conn = sqlite3.connect('beneficio.db')
+    df = pd.read_sql_query('''
+        SELECT fecha AS Fecha, no_partida AS "No. Partida", finca_beneficio AS "Finca Beneficio",
+               maduro_total AS "Total Maduro Ingresado", maduro_beneficio AS "Maduro Beneficio",
+               diferencia AS Diferencia, pergamino_partida AS "qq Pergamino",
+               rendimiento AS Rendimiento, qq_bodega AS "qq Bodega", envio AS "No. Envio",
+               estado_alerta AS Alerta
+        FROM beneficio ORDER BY id DESC
+    ''', conn)
+    conn.close()
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Beneficios')
+    output.seek(0)
+
+    return send_file(output, download_name="Reporte_Beneficio_Cafe.xlsx", as_attachment=True)
+
+@app.route('/usuarios', methods=['GET', 'POST'])
+@login_required
+def usuarios():
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        nombre = request.form['nombre'].strip()
+        password = request.form['password']
+        
+        pass_hash = generate_password_hash(password)
+        conn = sqlite3.connect('beneficio.db')
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO usuarios (username, password, nombre) VALUES (?, ?, ?)",
+                           (username, pass_hash, nombre))
+            conn.commit()
+            flash('Usuario creado exitosamente', 'success')
+        except sqlite3.IntegrityError:
+            flash('El nombre de usuario ya existe', 'danger')
+        conn.close()
+        return redirect(url_for('usuarios'))
+
+    conn = sqlite3.connect('beneficio.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, nombre FROM usuarios")
+    lista_usuarios = cursor.fetchall()
+    conn.close()
+
+    return render_template('usuarios.html', usuarios=lista_usuarios)
+
+if __name__ == '__main__':
+    app.run(debug=True)
