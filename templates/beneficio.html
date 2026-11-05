@@ -246,3 +246,7 @@
     </script>
 </body>
 </html>
+{% if current_user.rol == 'admin' %}
+  <!-- Este botón solo lo verá el Administrador -->
+  <a class="nav-link" href="{{ url_for('gestion_usuarios') }}">Gestión de Usuarios</a>
+{% endif %}

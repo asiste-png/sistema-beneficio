@@ -4,6 +4,7 @@ from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from database import get_db_connection
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_para_sesiones_sistema_beneficio'
@@ -173,32 +174,30 @@ def exportar_excel():
 
 @app.route('/usuarios', methods=['GET', 'POST'])
 @login_required
-def usuarios():
+def gestion_usuarios():
+    if current_user.rol != 'admin':
+        flash('No tienes permisos para acceder a esta sección.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        nombre = request.form['nombre'].strip()
-        password = request.form['password']
-        
-        pass_hash = generate_password_hash(password)
-        conn = sqlite3.connect('beneficio.db')
-        cursor = conn.cursor()
+        username = request.form['username']
+        password = generate_password_hash(request.form['password'])
+        nombre = request.form['nombre']
+        rol = request.form.get('rol', 'operador')
+
         try:
-            cursor.execute("INSERT INTO usuarios (username, password, nombre) VALUES (?, ?, ?)",
-                           (username, pass_hash, nombre))
+            cursor.execute("INSERT INTO usuarios (username, password, nombre, rol) VALUES (?, ?, ?, ?)",
+                           (username, password, nombre, rol))
             conn.commit()
-            flash('Usuario creado exitosamente', 'success')
+            flash('Usuario registrado exitosamente', 'success')
         except sqlite3.IntegrityError:
             flash('El nombre de usuario ya existe', 'danger')
-        conn.close()
-        return redirect(url_for('usuarios'))
 
-    conn = sqlite3.connect('beneficio.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username, nombre FROM usuarios")
-    lista_usuarios = cursor.fetchall()
+    # Obtener la lista de usuarios para pasarla a la plantilla
+    usuarios = cursor.execute("SELECT id, username, nombre, rol FROM usuarios").fetchall()
     conn.close()
 
-    return render_template('usuarios.html', usuarios=lista_usuarios)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return render_template('usuarios.html', usuarios=usuarios)

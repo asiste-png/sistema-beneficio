@@ -1,18 +1,21 @@
 import sqlite3
-from werkzeug.security import generate_password_hash
 
 def init_db():
     conn = sqlite3.connect('beneficio.db')
     cursor = conn.cursor()
-
+    
+    # Crear tabla de usuarios con columna de rol
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            nombre TEXT NOT NULL
+            nombre TEXT NOT NULL,
+            rol TEXT NOT NULL DEFAULT 'operador'
         )
     ''')
+    conn.commit()
+    conn.close()
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS beneficio (
@@ -35,11 +38,13 @@ def init_db():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_finca ON beneficio(finca_beneficio)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_fecha ON beneficio(fecha)')
 
-    cursor.execute("SELECT * FROM usuarios WHERE username = 'admin'")
-    if not cursor.fetchone():
-        pass_hash = generate_password_hash('admin123')
-        cursor.execute("INSERT INTO usuarios (username, password, nombre) VALUES (?, ?, ?)", 
-                       ('admin', pass_hash, 'Administrador'))
+from werkzeug.security import generate_password_hash
+import sqlite3
+
+def get_db_connection():
+    conn = sqlite3.connect('beneficio.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
     conn.commit()
     conn.close()
