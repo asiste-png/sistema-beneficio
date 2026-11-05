@@ -1,33 +1,41 @@
-import sqlite3
-import pandas as pd
-from io import BytesIO
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_db_connection
+from database import get_db_connection, init_db
+import sqlite3
+import pandas as pd
+from io import BytesIO
 
+# Inicializar Flask y la Base de Datos
 app = Flask(__name__)
-app.secret_key = 'clave_secreta_para_sesiones_sistema_beneficio'
+app.secret_key = 'tu_clave_secreta_aqui'
 
+# Inicializar Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Inicializar la estructura de las tablas
+init_db()
+
 class User(UserMixin):
-    def __init__(self, id, username, nombre):
+    def __init__(self, id, username, nombre, rol):
         self.id = id
         self.username = username
         self.nombre = nombre
+        self.rol = rol
 
 @login_manager.user_loader
 def load_user(user_id):
-    conn = sqlite3.connect('beneficio.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, username, nombre FROM usuarios WHERE id = ?", (user_id,))
-    u = cursor.fetchone()
+    user_data = cursor.execute("SELECT id, username, nombre, rol FROM usuarios WHERE id = ?", (user_id,)).fetchone()
     conn.close()
-    if u:
-        return User(id=u[0], username=u[1], nombre=u[2])
+    
+    if user_data:
+        # Si por alguna razón antigua rol viniera None, le asigna 'admin'
+        rol = user_data['rol'] if user_data['rol'] else 'admin'
+        return User(id=user_data['id'], username=user_data['username'], nombre=user_data['nombre'], rol=rol)
     return None
 
 @app.route('/login', methods=['GET', 'POST'])
