@@ -29,12 +29,17 @@ class User(UserMixin):
 def load_user(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    user_data = cursor.execute("SELECT id, username, nombre, rol FROM usuarios WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
-    
+    try:
+        user_data = cursor.execute("SELECT id, username, nombre, rol FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+    except sqlite3.OperationalError:
+        # Si la columna 'rol' falla por algún motivo raro, consulta básica
+        user_data = cursor.execute("SELECT id, username, nombre FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+
     if user_data:
-        # Si por alguna razón antigua rol viniera None, le asigna 'admin'
-        rol = user_data['rol'] if user_data['rol'] else 'admin'
+        # Intentar leer rol, o asignar 'admin' por defecto
+        rol = user_data['rol'] if 'rol' in user_data.keys() and user_data['rol'] else 'admin'
         return User(id=user_data['id'], username=user_data['username'], nombre=user_data['nombre'], rol=rol)
     return None
 

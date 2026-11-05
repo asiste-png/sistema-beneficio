@@ -10,7 +10,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Crear tabla usuarios si no existe
+    # 1. Crear tabla usuarios si no existe
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,13 +21,13 @@ def init_db():
         )
     ''')
 
-    # Forzar la inclusión de la columna 'rol' si la base de datos previa no la tenía
+    # 2. Verificar e insertar columna 'rol' si la tabla es antigua
     try:
         cursor.execute("ALTER TABLE usuarios ADD COLUMN rol TEXT DEFAULT 'operador'")
     except sqlite3.OperationalError:
         pass  # La columna ya existe
 
-    # Crear la tabla beneficio
+    # 3. Crear tabla beneficio si no existe
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS beneficio (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,15 +39,19 @@ def init_db():
         )
     ''')
 
-    # Crear usuario admin por defecto si no existe
-    admin_pass = generate_password_hash('admin123')
-    cursor.execute('''
-        INSERT OR IGNORE INTO usuarios (username, password, nombre, rol)
-        VALUES (?, ?, ?, ?)
-    ''', ('admin', admin_pass, 'Administrador', 'admin'))
-
-    # Asegurar que el usuario admin tenga el rol 'admin'
-    cursor.execute("UPDATE usuarios SET rol = 'admin' WHERE username = 'admin'")
+    # 4. Asegurar que exista el usuario admin por defecto
+    cursor.execute("SELECT * FROM usuarios WHERE username = 'admin'")
+    admin_user = cursor.fetchone()
+    
+    if not admin_user:
+        admin_pass = generate_password_hash('admin123')
+        cursor.execute('''
+            INSERT INTO usuarios (username, password, nombre, rol)
+            VALUES (?, ?, ?, ?)
+        ''', ('admin', admin_pass, 'Administrador', 'admin'))
+    else:
+        # Asegurar que el rol sea 'admin' y la contraseña esté actualizada
+        cursor.execute("UPDATE usuarios SET rol = 'admin' WHERE username = 'admin'")
 
     conn.commit()
     conn.close()
