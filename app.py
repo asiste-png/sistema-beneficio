@@ -46,21 +46,27 @@ def load_user(user_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        conn = sqlite3.connect('beneficio.db')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, password, nombre FROM usuarios WHERE username = ?", (username,))
-        row = cursor.fetchone()
+        user_data = cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
         conn.close()
 
-        if row and check_password_hash(row[2], password):
-            user = User(id=row[0], username=row[1], nombre=row[3])
+        if user_data and check_password_hash(user_data['password'], password):
+            # Asignación segura del rol
+            rol = user_data['rol'] if 'rol' in user_data.keys() and user_data['rol'] else 'operador'
+            user = User(
+                id=user_data['id'],
+                username=user_data['username'],
+                nombre=user_data['nombre'],
+                rol=rol
+            )
             login_user(user)
-            return redirect(url_for('index'))
-        else:
-            flash('Usuario o contraseña incorrectos', 'danger')
+            return redirect(url_for('dashboard'))
+
+        flash('Usuario o contraseña incorrectos', 'danger')
 
     return render_template('login.html')
 
