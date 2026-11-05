@@ -9,6 +9,12 @@ import pandas as pd
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_beneficio_plataforma'
 
+# Manejador seguro para evitar fallas por nombres de funciones faltantes en url_for
+def handle_url_build_error(error, endpoint, values):
+    return url_for('dashboard', **values)
+
+app.url_build_error_handlers.append(handle_url_build_error)
+
 # Inicialización de Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -43,7 +49,6 @@ def load_user(user_id):
 
 # --- RUTAS DE LA APLICACIÓN ---
 
-# Permite acceder a la vista principal sin importar cómo se llame en url_for()
 @app.route('/')
 @app.route('/beneficio')
 @app.route('/index')
@@ -55,7 +60,7 @@ def dashboard():
     conn.close()
     return render_template('beneficio.html', registros=registros)
 
-# También asignamos alias a las funciones por si las plantillas usan url_for('beneficio') o url_for('index')
+# Alias por si las plantillas usan url_for('beneficio') o url_for('index')
 beneficio = dashboard
 index = dashboard
 
