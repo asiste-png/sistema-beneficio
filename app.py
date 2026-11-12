@@ -6,7 +6,7 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
-
+from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'
 
@@ -110,20 +110,35 @@ init_db()
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        user_data = cursor.execute("SELECT * FROM usuarios WHERE username = ? AND password = ?", (username, password)).fetchone()
-        conn.close()
+        user_data = cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,)).fetchone()
 
         if user_data:
-            rol = user_data['rol'] if 'rol' in user_data.keys() else 'Usuario'
-            user = User(id=user_data['id'], username=user_data['username'], rol=rol)
-            login_user(user)
-            return redirect(url_for('dashboard'))
+            db_pass = user_data['password']
+            acceso_valido = False
+
+            # Verifica si la contraseña ya está encriptada o si aún está en texto plano
+            if db_pass.startswith(('pbkdf2:', 'scrypt:')):
+                acceso_valido = check_password_hash(db_pass, password)
+            elif db_pass == password:
+                acceso_valido = True
+                # Aprovecha para encriptar la contraseña antigua automáticamente
+                nuevo_hash = generate_password_hash(password)
+                cursor.execute("UPDATE usuarios SET password = ? WHERE id = ?", (nuevo_hash, user_data['id']))
+                conn.commit()
+
+            if acceso_valido:
+                conn.close()
+                rol = user_data['rol'] if 'rol' in user_data.keys() else 'Usuario'
+                user = User(id=user_data['id'], username=user_data['username'], rol=rol)
+                login_user(user)
+                return redirect(url_for('dashboard'))
         
+        conn.close()
         flash('Credenciales incorrectas', 'danger')
 
     return render_template('login.html')
@@ -307,7 +322,7 @@ def crear_usuario():
     try:
         cursor.execute(
             "INSERT INTO usuarios (username, password, nombre, rol) VALUES (?, ?, ?, ?)",
-            (username, password, nombre, rol)
+            (username, generate_password_hash(password), nombre, rol)
         )
         conn.commit()
         flash('Usuario creado exitosamente', 'success')

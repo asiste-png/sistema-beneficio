@@ -108,7 +108,26 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <div class="row g-2 mb-3 align-items-end bg-light p-3 rounded border">
+    <div class="col-md-4">
+        <label class="form-label small fw-bold mb-1">Buscar Partida o Finca</label>
+        <input type="text" id="filtroTexto" class="form-control form-control-sm" placeholder="Ej. Finca El Mirador o P-01...">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small fw-bold mb-1">Desde Fecha</label>
+        <input type="date" id="filtroDesde" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small fw-bold mb-1">Hasta Fecha</label>
+        <input type="date" id="filtroHasta" class="form-control form-control-sm">
+    </div>
+    <div class="col-md-2">
+        <button type="button" id="btnLimpiarFiltros" class="btn btn-outline-secondary btn-sm w-100">
+            Limpiar
+        </button>
+    </div>
+</div>
+                        <table id="tablaBeneficio" class="table table-hover align-middle mb-0">
                             <thead class="table-dark">
                                 <tr>
                                     <th>Imagen</th>
@@ -428,5 +447,51 @@ document.addEventListener('DOMContentLoaded', function() {
     pergaminoInput.addEventListener('input', calcularValores);
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const inputTexto = document.getElementById('filtroTexto');
+    const inputDesde = document.getElementById('filtroDesde');
+    const inputHasta = document.getElementById('filtroHasta');
+    const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+    const tabla = document.getElementById('tablaBeneficio');
+
+    if (!tabla) return;
+
+    function filtrarTabla() {
+        const texto = inputTexto.value.toLowerCase().trim();
+        const desde = inputDesde.value;
+        const hasta = inputHasta.value;
+        const filas = tabla.querySelectorAll('tbody tr');
+
+        filas.forEach(fila => {
+            const celdas = fila.querySelectorAll('td');
+            if (celdas.length < 4) return;
+
+            const fechaFila = celdas[1].textContent.trim();
+            const partidaFila = celdas[2].textContent.toLowerCase();
+            const fincaFila = celdas[3].textContent.toLowerCase();
+
+            const coincideTexto = !texto || partidaFila.includes(texto) || fincaFila.includes(texto);
+            const coincideDesde = !desde || fechaFila >= desde;
+            const coincideHasta = !hasta || fechaFila <= hasta;
+
+            fila.style.display = (coincideTexto && coincideDesde && coincideHasta) ? '' : 'none';
+        });
+    }
+
+    inputTexto.addEventListener('input', filtrarTabla);
+    inputDesde.addEventListener('change', filtrarTabla);
+    inputHasta.addEventListener('change', filtrarTabla);
+
+    btnLimpiar.addEventListener('click', function () {
+        inputTexto.value = '';
+        inputDesde.value = '';
+        inputHasta.value = '';
+        filtrarTabla();
+    });
+});
+</script>
+
 </body>
 </html>
