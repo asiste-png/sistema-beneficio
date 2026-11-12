@@ -48,8 +48,11 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'database.db')
+
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -290,6 +293,10 @@ def eliminar_beneficio(id):
 @app.route('/usuarios/crear', methods=['POST'])
 @login_required
 def crear_usuario():
+    if current_user.rol != 'Admin':
+        flash('Acceso denegado: Se requieren permisos de Administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+
     username = request.form.get('username')
     password = request.form.get('password')
     nombre = request.form.get('nombre')
@@ -314,6 +321,10 @@ def crear_usuario():
 @app.route('/usuarios/eliminar/<int:id>', methods=['POST'])
 @login_required
 def eliminar_usuario(id):
+    if current_user.rol != 'Admin':
+        flash('Acceso denegado: Se requieren permisos de Administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+
     if hasattr(current_user, 'id') and current_user.id == id:
         flash('No puedes eliminar tu propia cuenta activa.', 'warning')
         return redirect(url_for('dashboard'))
