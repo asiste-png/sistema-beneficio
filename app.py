@@ -18,9 +18,10 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 class User(UserMixin):
-    def __init__(self, id, username):
+    def __init__(self, id, username, rol='Usuario'):
         self.id = id
         self.username = username
+        self.rol = rol
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -31,7 +32,8 @@ def load_user(user_id):
     if user_data:
         u_dict = dict(user_data)
         username = u_dict.get('username') or u_dict.get('nombre') or 'Usuario'
-        return User(id=u_dict['id'], username=username)
+        rol = u_dict.get('rol') or 'Usuario'
+        return User(id=u_dict['id'], username=username, rol=rol)
     return None
 
 # ---------------------------------------------------------
@@ -114,7 +116,8 @@ def login():
         conn.close()
 
         if user_data:
-            user = User(id=user_data['id'], username=user_data['username'])
+            rol = user_data['rol'] if 'rol' in user_data.keys() else 'Usuario'
+            user = User(id=user_data['id'], username=user_data['username'], rol=rol)
             login_user(user)
             return redirect(url_for('dashboard'))
         
@@ -218,6 +221,11 @@ def nuevo_beneficio():
 @app.route('/beneficio/editar/<int:id>', methods=['POST'])
 @login_required
 def editar_beneficio(id):
+    # 👇 Agrega estas 3 líneas aquí (línea 224):
+    if current_user.rol != 'Admin':
+        flash('Acceso denegado: Se requieren permisos de Administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+
     fecha = request.form.get('fecha')
     partida = request.form.get('partida')
     finca = request.form.get('finca')
@@ -262,6 +270,11 @@ def editar_beneficio(id):
 @app.route('/beneficio/eliminar/<int:id>', methods=['POST'])
 @login_required
 def eliminar_beneficio(id):
+    # 👇 Agrega estas 3 líneas exactamente aquí:
+    if current_user.rol != 'Admin':
+        flash('Acceso denegado: Se requieren permisos de Administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM beneficio WHERE id = ?", (id,))
